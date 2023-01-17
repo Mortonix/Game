@@ -95,9 +95,10 @@ class Start(QtWidgets.QDialog):
         self.update()
 
     def play(self):
+        self.hide()
         system('python game.py')
         self.exit_ev()
 
-    @staticmethod
-    def exit_ev():
+    def exit_ev(self):
+        self.con.close()
         sys.exit()
