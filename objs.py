@@ -1,4 +1,5 @@
 import random
+import math
 import pygame
 
 
@@ -32,15 +33,56 @@ class Star:
         return False
 
 
-class Ship:
-    def __init__(self, screen, x, y, sprite):
-        self.x = x
-        self.y = y
-        self.angle = 0
-        self.hp = 100
-        self.shield = 0
-        self.sprite = pygame.transform.scale(sprite, (400*(screen.get_width()/540), 400*(screen.get_height()/960)))
+class Bullet:
+    def __init__(self, screen, pos, sprite, team=True):
+        self.team = team
+        self.pos = [i for i in pos]
+        self.speed = 10
         self.screen = screen
+        self.sprite = pygame.transform.scale(sprite, (50 * (screen.get_width() / 540) * 0.9,
+                                                      50 * (screen.get_height() / 960) * 0.9))
+        self.mask = pygame.mask.from_surface(self.sprite)
+        self.rect = self.mask.get_rect()
+
+    def draw(self):
+        # sprite = pygame.transform.rotate(self.sprite)
+        self.pos[1] -= self.speed
+        self.screen.blit(self.sprite, self.pos)
+
+
+class Asteroid:
+    def __init__(self, screen, pos, direction, speed, sprite, type):
+        self.screen = screen
+        self.pos = [i for i in pos]
+        self.speed = speed
+        self.direction = direction
+        self.sprite = sprite
+        if type == 'l':
+            self.sprite = pygame.transform.scale(sprite, (100 * (screen.get_width() / 540),
+                                                          100 * (screen.get_height() / 960)))
+        elif type == 'm':
+            self.sprite = pygame.transform.scale(sprite, (85 * (screen.get_width() / 540),
+                                                          85 * (screen.get_height() / 960)))
+        elif type == 's':
+            self.sprite = pygame.transform.scale(sprite, (70 * (screen.get_width() / 540),
+                                                          70 * (screen.get_height() / 960)))
+
+    def draw(self):
+        self.pos[1] += self.speed * math.cos(self.direction)
+        self.pos[0] += self.speed * math.sin(self.direction)
+        self.screen.blit(self.sprite, self.pos)
+
+
+class Ship:
+    def __init__(self, screen, pos, sprite, team, shoot):
+        self.team = team
+        self.x, self.y = pos
+        self.angle = 0
+        self.hp = 1000
+        self.shield = 100
+        self.sprite = sprite
+        self.screen = screen
+        self.can_shoot = shoot
         self.rect = sprite.get_rect()
         self.movement_speed = 1
         self.rotation_speed = 1
@@ -76,7 +118,56 @@ class Ship:
         elif self.angle > angle:
             self.angle -= self.rotation_speed
 
-    def draw_ship(self):
+    def draw(self):
         sprite = pygame.transform.rotate(self.sprite, self.angle)
         self.rect = sprite.get_rect()
         self.screen.blit(sprite, self.get_current_position())
+
+
+class MotherShip(Ship):
+    def __init__(self, screen, pos, sprite, team, shoot=False):
+        super().__init__(screen, pos, sprite, team, shoot)
+        self.name = 'MotherShip'
+        self.sprite = pygame.transform.scale(sprite,
+                                             (400 * (screen.get_width() / 540), 400 * (screen.get_height() / 960)))
+
+    def return_name(self):
+        return self.name
+
+
+class AssaultShip(Ship):
+    def __init__(self, screen, pos, sprite, team, shoot=True):
+        super().__init__(screen, pos, sprite, team, shoot)
+        self.name = 'Assault'
+        self.sprite = pygame.transform.scale(sprite,
+                                             (48 * (screen.get_width() / 540), 48 * (screen.get_height() / 960)))
+        self.shoot_delay = 10
+        self.delay = 0
+
+    def return_name(self):
+        return self.name
+
+    def change_pos(self, x, y):
+        if self.x < x and x - self.x < self.movement_speed:
+            self.x = x
+        elif self.x > x and self.x - x < self.movement_speed:
+            self.x = x
+        elif self.x < x:
+            self.x += self.movement_speed + self.movement_speed * (x - self.x) // 16
+        elif self.x > x:
+            self.x -= self.movement_speed + self.movement_speed * (self.x - x) // 16
+        if self.y < y and y - self.y < self.movement_speed:
+            self.y = y
+        elif self.y > y and self.y - y < self.movement_speed:
+            self.y = y
+        elif self.y < y:
+            self.y += self.movement_speed + self.movement_speed * (y - self.y) // 16
+        elif self.y > y:
+            self.y -= self.movement_speed + self.movement_speed * (self.y - y) // 16
+
+    def try_shoot(self):
+        if self.delay <= 0:
+            self.delay = self.shoot_delay
+            return True
+        else:
+            return False
