@@ -45,6 +45,8 @@ class Start(QtWidgets.QDialog):
         self.exit_b = QtWidgets.QPushButton(self)
         self.exit_b.setGeometry(QtCore.QRect(400, 355, 80, 25))
         self.exit_b.clicked.connect(self.exit_ev)
+        self.logo = QtWidgets.QLabel(self)
+        self.pixmap = QtGui.QPixmap('Data/logo.png')
 
         self.initUI()
         self.retranslateUI()
@@ -80,6 +82,9 @@ class Start(QtWidgets.QDialog):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), "Settings")
         self.play_b.setText("Play")
         self.exit_b.setText("Exit")
+        self.logo.setPixmap(self.pixmap)
+        self.resize(self.pixmap.width(), self.pixmap.height())
+        self.logo.setGeometry(QtCore.QRect(20, 20, self.pixmap.width(), self.pixmap.height()))
 
     def res_box_ev(self, val):
         cur = self.con.cursor()
@@ -102,3 +107,8 @@ class Start(QtWidgets.QDialog):
     def exit_ev(self):
         self.con.close()
         sys.exit()
+
+
+class Shop(QtWidgets.QDialog):
+    def __init__(self):
+        super().__init__()

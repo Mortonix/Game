@@ -6,7 +6,7 @@ import pygame.key
 
 from objs import *
 
-game_version = '0.0.3 (Alpha)'
+game_version = '0.0.5 (Alpha)'
 
 try:
     con = sqlite3.connect('Data\gamebase.sqlite')
@@ -21,6 +21,14 @@ size = width, height = res
 pygame.init()
 pygame.display.set_caption(f'Space Defender v{game_version}')
 screen = pygame.display.set_mode(size)
+pygame.mixer.music.load('Data/Sounds/background_music.mp3')
+pygame.mixer.music.play(-1)
+pygame.mixer.music.set_volume(0.1)
+
+total_money = 0
+money = 0
+enemies_destroyed = 0
+shots_fired = 0
 
 
 def load_image(name, colorkey=None):
@@ -94,6 +102,12 @@ def game_pause():
                 bup = True
 
 
+def check_hit(bullet, obj):
+    if pygame.sprite.collide_mask(bullet, obj):
+        return True
+    return False
+
+
 def close_game():
     pygame.quit()
     sys.exit()
@@ -120,6 +134,7 @@ class Game:
         self.font = pygame.font.Font(None, width // 18 * 3)
         self.fire = False
         self.bup = True
+        self.in_shop = False
 
         self.friendly_objects.append(
             MotherShip(screen, (screen.get_width() // 2, screen.get_height() * 1.3), all_sprites['p_mothership'], True))
@@ -127,6 +142,7 @@ class Game:
             AssaultShip(screen, (screen.get_width() // 2, screen.get_height() * 1.3), all_sprites['p_assault'], True))
 
     def run_game(self):
+        global shots_fired, total_money, money, enemies_destroyed
         while True:
             pygame.display.flip()
             self.clock.tick(self.FPS)
@@ -145,28 +161,34 @@ class Game:
 
             for bul in self.f_bullets:
                 bul.draw()
-                if bul.pos[1] <= -10:
+                if bul.sprite.rect.y <= -10:
                     self.f_bullets.remove(bul)
 
-            for object in self.friendly_objects:
-                object.draw()
+            for obj in self.friendly_objects:
+                obj.draw()
 
             if self.cur_scene == 'start':
                 self.start_win()
             elif self.cur_scene == 'fight_field':
                 self.fight_field()
+            elif self.cur_scene == 'shop':
+                self.shop()
 
     def start_win(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                 close_game()
-            if event.type == pygame.KEYDOWN:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+                self.cur_scene = 'shop'
+                self.n_speed = 1
+                pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
+            elif event.type == pygame.KEYDOWN:
                 self.cur_scene = 'fight_field'
                 self.n_speed = 10
                 pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_CROSSHAIR)
 
                 self.enemy_objects.append(
-                    Asteroid(screen, (screen.get_width() // 2, -100), 25, 5, all_sprites['s_aster'], 's'))
+                    Asteroid(screen, (screen.get_width() // 2, 100), 0, 1, all_sprites['l_aster'], 'l'))
         self.friendly_objects[0].change_pos(screen.get_width() // 2 + random.randint(-1, 1),
                                             screen.get_height() // 2 + random.randint(-1, 1))
         self.friendly_objects[1].change_pos((screen.get_width() // 2) * 0.5 + random.randint(-1, 1),
@@ -177,8 +199,8 @@ class Game:
                 s.change_speed(self.cur_speed)
             if not s.check_visible():
                 self.stars.remove(s)
-        for object in self.friendly_objects:
-            object.draw()
+        for obj in self.friendly_objects:
+            obj.draw()
         text = self.font.render('Press to PLAY', True, (self.text_bright, self.text_bright, self.text_bright))
         text_x = width // 2 - text.get_width() // 2
         text_y = height // 1.1 - text.get_height() // 2
@@ -195,11 +217,16 @@ class Game:
                 self.bup = True
 
     def fight_field(self):
+        global shots_fired, total_money, money, enemies_destroyed
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 close_game()
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 game_pause()
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+                self.cur_scene = 'shop'
+                self.n_speed = 1
+                pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
             if pygame.mouse.get_pressed(3)[0]:
                 self.fire = True
             if not pygame.mouse.get_pressed(3)[0]:
@@ -211,16 +238,42 @@ class Game:
                     if obj.try_shoot():
                         self.f_bullets.append(
                             Bullet(screen, obj.get_current_position(), all_sprites['f_bullet']))
+                        shots_fired += 1
 
         self.friendly_objects[0].change_pos(screen.get_width() // 2,
                                             screen.get_height() * 0.95)
         self.friendly_objects[0].change_rotation(90)
-        self.friendly_objects[1].change_pos(pygame.mouse.get_pos()[0], pygame.mouse.get_pos()[1])
+        if pygame.mouse.get_pos()[1] < screen.get_height() * 0.85:
+            self.friendly_objects[1].change_pos(pygame.mouse.get_pos()[0], pygame.mouse.get_pos()[1])
+        else:
+            self.friendly_objects[1].change_pos(pygame.mouse.get_pos()[0], screen.get_height() * 0.85)
         for obj in self.friendly_objects:
             if obj.can_shoot:
                 obj.delay -= 1
         for obj in self.enemy_objects:
             obj.draw()
+            for bullet in self.f_bullets:
+                if check_hit(bullet.sprite, obj.sprite):
+                    if obj.take_damage(bullet.damage):
+                        obj.destroy(screen, all_sprites, self.enemy_objects)
+                        self.enemy_objects.remove(obj)
+                    self.f_bullets.remove(bullet)
+
+    def shop(self):
+        global money
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+                close_game()
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+                self.cur_scene = 'fight_field'
+                self.n_speed = 10
+                pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_CROSSHAIR)
+
+        self.friendly_objects[0].change_pos(screen.get_width() // 2,
+                                            screen.get_height() * 0.8)
+        self.friendly_objects[0].change_rotation(0)
+        self.friendly_objects[1].change_pos(screen.get_width() // 2,
+                                            screen.get_height() * 0.53)
 
 
 if __name__ == '__main__':
