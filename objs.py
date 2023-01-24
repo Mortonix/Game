@@ -2,6 +2,16 @@ import random
 import math
 import pygame
 
+pygame.mixer.init()
+
+sounds = {
+    'shield': pygame.mixer.Sound('Data/Sounds/shilds_down.wav'),
+    'assault_shoot': pygame.mixer.Sound('Data/Sounds/assault_gun.mp3'),
+    'sniper_shoot': pygame.mixer.Sound('Data/Sounds/sniper_gun.mp3'),
+    'a_boom1': pygame.mixer.Sound('Data/Sounds/aster_boom1.mp3'),
+    'a_boom2': pygame.mixer.Sound('Data/Sounds/aster_boom2.mp3')
+}
+
 
 class Star:
     def __init__(self, screen, y, speed):
@@ -34,13 +44,13 @@ class Star:
 
 
 class Bullet:
-    def __init__(self, screen, pos, surface, team=True):
+    def __init__(self, screen, pos, surface, damage, team=True):
         self.sprite = pygame.sprite.Sprite()
         self.team = team
         self.sprite.rect = surface.get_rect()
         self.sprite.rect.x, self.sprite.rect.y = (i for i in pos)
         self.speed = 10
-        self.damage = 10
+        self.damage = damage
         self.screen = screen
         self.sprite.image = pygame.transform.scale(surface, (50 * (screen.get_width() / 540) * 0.9,
                                                              50 * (screen.get_height() / 960) * 0.9))
@@ -67,28 +77,27 @@ class Asteroid:
         self.size = 0
 
         if self.tip == 'l':
-            self.sprite.image = pygame.transform.scale(self.surface, (100 * (screen.get_width() / 540),
-                                                                      100 * (screen.get_height() / 960)))
+            self.surface = pygame.transform.scale(self.surface, (100 * (self.screen.get_width() / 540),
+                                                                 100 * (self.screen.get_height() / 960)))
             self.rotation_speed = random.randint(-10, 10)
             self.hp = 100
             self.size = 100
             self.damage = 50
         elif self.tip == 'm':
-            self.sprite.image = pygame.transform.scale(self.surface, (70 * (screen.get_width() / 540),
-                                                                      70 * (screen.get_height() / 960)))
+            self.surface = pygame.transform.scale(self.surface, (70 * (self.screen.get_width() / 540),
+                                                                 70 * (self.screen.get_height() / 960)))
             self.rotation_speed = random.randint(-30, 30)
             self.hp = 50
             self.size = 70
             self.damage = 25
         elif self.tip == 's':
-            self.sprite.image = pygame.transform.scale(self.surface, (60 * (screen.get_width() / 540),
-                                                                      60 * (screen.get_height() / 960)))
+            self.surface = pygame.transform.scale(self.surface, (60 * (self.screen.get_width() / 540),
+                                                                 60 * (self.screen.get_height() / 960)))
             self.rotation_speed = random.randint(-50, 50)
             self.hp = 25
             self.size = 60
             self.damage = 10
 
-        self.sprite.image = self.surface
         self.sprite.mask = pygame.mask.from_surface(self.surface)
         self.sprite.rect = self.surface.get_rect()
         self.sprite.rect.x += pos[0]
@@ -116,6 +125,12 @@ class Asteroid:
     def destroy(self, screen, all_sprites, e_objs):
         pos = self.x, self.y
         cur = self.cur_pos()
+        if random.randint(1, 2) == 1:
+            sounds['a_boom1'].set_volume(0.2)
+            sounds['a_boom1'].play()
+        else:
+            sounds['a_boom2'].set_volume(0.2)
+            sounds['a_boom2'].play()
         if self.tip == 'l':
             e_objs.append(
                 Asteroid(screen, (pos[0] - cur[0], pos[1] - cur[1]), random.randint(-90, 90) // 2, self.speed,
@@ -133,13 +148,16 @@ class Asteroid:
 
 
 class Ship:
-    def __init__(self, screen, pos, surface, team, shoot):
+    def __init__(self, screen, pos, surface, s_surface, team, shoot):
+        self.s_surface = s_surface
+        self.s_alpha = 10
         self.sprite = pygame.sprite.Sprite()
         self.screen = screen
         self.x, self.y = pos
         self.surface = surface
         self.team = team
         self.can_shoot = shoot
+        self.damage = 0
         self.angle = 0
         self.hp = 0
         self.shield = 0
@@ -150,6 +168,7 @@ class Ship:
         self.sprite.rect = self.surface.get_rect()
         self.sprite.rect.x += pos[0]
         self.sprite.rect.y += pos[1]
+        self.shield_enabled = False
 
     def cur_pos(self):
         return self.x - self.sprite.rect.centerx, self.y - self.sprite.rect.centery
@@ -183,9 +202,19 @@ class Ship:
             self.angle -= self.rotation_speed
 
     def draw(self):
+        if self.shield_enabled:
+            s_sprite = pygame.transform.rotate(self.s_surface, self.angle)
+            self.screen.blit(s_sprite, self.cur_pos())
         self.sprite.image = pygame.transform.rotate(self.surface, self.angle)
+        self.sprite.mask = pygame.mask.from_surface(self.sprite.image)
         self.sprite.rect = self.sprite.image.get_rect()
         self.screen.blit(self.sprite.image, self.cur_pos())
+
+    def shield_activation(self):
+        if self.shield <= 0:
+            self.s_alpha = 0
+        else:
+            self.s_surface.set_alpha(10)
 
     def take_damage(self, damage):
         if self.shield > 0:
@@ -197,26 +226,45 @@ class Ship:
 
 
 class MotherShip(Ship):
-    def __init__(self, screen, pos, surface, team, shoot=False):
-        super().__init__(screen, pos, surface, team, shoot)
+    def __init__(self, screen, pos, surface, s_surface, team, shoot=False):
+        super().__init__(screen, pos, surface, s_surface, team, shoot)
         self.name = 'MotherShip'
         self.hp = 1000
         self.shield = 100
         self.surface = pygame.transform.scale(surface,
                                               (400 * (screen.get_width() / 540), 400 * (screen.get_height() / 960)))
+        self.s_surface = pygame.transform.scale(s_surface,
+                                                (400 * (screen.get_width() / 540), 400 * (screen.get_height() / 960)))
+        self.shield_enabled = True
 
     def return_name(self):
         return self.name
 
+    def take_damage(self, damage):
+        if self.shield > 0:
+            if self.shield - damage <= 0:
+                sounds['shield'].play()
+            self.shield -= damage
+        else:
+            self.hp -= damage
+        if self.shield < 0:
+            self.shield = 0
+
 
 class AssaultShip(Ship):
-    def __init__(self, screen, pos, surface, team, shoot=True):
-        super().__init__(screen, pos, surface, team, shoot)
+    def __init__(self, screen, pos, surface, s_surface, team, shoot=True):
+        super().__init__(screen, pos, surface, s_surface, team, shoot)
         self.name = 'Assault'
         self.surface = pygame.transform.scale(surface,
                                               (48 * (screen.get_width() / 540), 48 * (screen.get_height() / 960)))
+        self.s_surface = pygame.transform.scale(s_surface,
+                                                (48 * (screen.get_width() / 540), 48 * (screen.get_height() / 960)))
         self.shoot_delay = 30
+        self.hp = 100
+        self.damage = 10
+        self.shield = 0
         self.delay = 0
+        self.shield_enabled = False
 
     def return_name(self):
         return self.name
@@ -242,6 +290,54 @@ class AssaultShip(Ship):
     def try_shoot(self):
         if self.delay <= 0:
             self.delay = self.shoot_delay
+            sounds['assault_shoot'].set_volume(0.1)
+            sounds['assault_shoot'].play()
+            return True
+        else:
+            return False
+
+
+class SniperShip(Ship):
+    def __init__(self, screen, pos, surface, s_surface, team, shoot=True):
+        super().__init__(screen, pos, surface, s_surface, team, shoot)
+        self.name = 'Sniper'
+        self.surface = pygame.transform.scale(surface,
+                                              (48 * (screen.get_width() / 540), 48 * (screen.get_height() / 960)))
+        self.s_surface = pygame.transform.scale(s_surface,
+                                                (48 * (screen.get_width() / 540), 48 * (screen.get_height() / 960)))
+        self.shoot_delay = 60
+        self.hp = 10
+        self.damage = 25
+        self.shield = 0
+        self.delay = 0
+        self.shield_enabled = False
+
+    def return_name(self):
+        return self.name
+
+    def change_pos(self, x, y):
+        if self.x < x and x - self.x < self.movement_speed:
+            self.x = x
+        elif self.x > x and self.x - x < self.movement_speed:
+            self.x = x
+        elif self.x < x:
+            self.x += self.movement_speed + self.movement_speed * (x - self.x) // 16
+        elif self.x > x:
+            self.x -= self.movement_speed + self.movement_speed * (self.x - x) // 16
+        if self.y < y and y - self.y < self.movement_speed:
+            self.y = y
+        elif self.y > y and self.y - y < self.movement_speed:
+            self.y = y
+        elif self.y < y:
+            self.y += self.movement_speed + self.movement_speed * (y - self.y) // 16
+        elif self.y > y:
+            self.y -= self.movement_speed + self.movement_speed * (self.y - y) // 16
+
+    def try_shoot(self):
+        if self.delay <= 0:
+            self.delay = self.shoot_delay
+            sounds['sniper_shoot'].set_volume(0.1)
+            sounds['sniper_shoot'].play()
             return True
         else:
             return False
