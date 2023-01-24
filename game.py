@@ -6,7 +6,7 @@ import pygame.key
 
 from objs import *
 
-game_version = '0.0.5 (Alpha)'
+game_version = '0.1.0 (Beta)'
 
 try:
     con = sqlite3.connect('Data\gamebase.sqlite')
@@ -227,6 +227,10 @@ class Game:
                 self.stars.remove(s)
         for obj in self.friendly_objects:
             obj.draw()
+        font2 = pygame.font.Font(None, width // 18 * 1)
+        text1 = font2.render('Press "1" or "2"', True, (250, 250, 250))
+        text1_x, text1_y = width // 2 - text1.get_width() // 2, height * 0.8
+        screen.blit(text1, (text1_x, text1_y))
         text = self.font.render('Choose a Ship', True, (self.text_bright, self.text_bright, self.text_bright))
         text_x = width // 2 - text.get_width() // 2
         text_y = height // 1.1 - text.get_height() // 2
@@ -260,15 +264,14 @@ class Game:
 
         if len(self.enemy_objects) == 0:
             self.enemy_objects.append(
-                Asteroid(screen, (random.randint(0, screen.get_width()), -99), 0, 1,
+                Asteroid(screen, (random.randint(0, screen.get_width()), -50), 0, 2,
                          all_sprites['l_aster'],
                          'l'))
-
-        for i in self.enemy_objects:
-            if dif == 0:
-                i.hp = i.hp * 0.1
-            else:
-                i.hp = i.hp * (dif * 0.5)
+            for i in self.enemy_objects:
+                if dif == 0:
+                    i.hp = i.hp * 0.1
+                else:
+                    i.hp = i.hp * (dif * 0.35)
         if self.fire:
             for obj in self.friendly_objects:
                 if obj.can_shoot:
@@ -303,14 +306,15 @@ class Game:
                             if dif == 0:
                                 i.hp = i.hp * 0.1
                             else:
-                                i.hp = i.hp * (dif * 0.5)
+                                i.hp = i.hp * (dif * 0.35)
+
                     self.f_bullets.remove(bullet)
             if obj.x < -screen.get_width() * 0.2 or obj.y < -screen.get_height() * 0.2:
                 self.enemy_objects.remove(obj)
             if obj.x > screen.get_width() + screen.get_width() * 0.2 or \
                     obj.y > screen.get_height() + screen.get_height() * 0.2:
                 self.enemy_objects.remove(obj)
-            if screen.get_width() * 0.25 < obj.x < screen.get_width() * 0.75 and \
+            if screen.get_width() * 0.25 < obj.x < screen.get_width() * 0.85 and \
                     screen.get_height() * 0.85 < obj.y < screen.get_height():
                 self.cur_scene = 'end'
                 self.n_speed = 1

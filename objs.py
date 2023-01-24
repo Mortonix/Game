@@ -259,7 +259,7 @@ class AssaultShip(Ship):
                                               (48 * (screen.get_width() / 540), 48 * (screen.get_height() / 960)))
         self.s_surface = pygame.transform.scale(s_surface,
                                                 (48 * (screen.get_width() / 540), 48 * (screen.get_height() / 960)))
-        self.shoot_delay = 30
+        self.shoot_delay = 20
         self.hp = 100
         self.damage = 10
         self.shield = 0
@@ -307,7 +307,7 @@ class SniperShip(Ship):
                                                 (48 * (screen.get_width() / 540), 48 * (screen.get_height() / 960)))
         self.shoot_delay = 60
         self.hp = 10
-        self.damage = 25
+        self.damage = 30
         self.shield = 0
         self.delay = 0
         self.shield_enabled = False
