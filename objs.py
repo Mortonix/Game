@@ -54,46 +54,58 @@ class Bullet:
 
 class Asteroid:
     def __init__(self, screen, pos, direction, speed, surface, tip):
+        self.x = pos[0]
+        self.y = pos[1]
         self.sprite = pygame.sprite.Sprite()
         self.screen = screen
-        self.hp = 0
-        self.angle = 0
-        self.speed = speed
         self.direction = direction
+        self.speed = speed
         self.surface = surface
         self.tip = tip
-        if tip == 'l':
-            self.surface = pygame.transform.scale(surface, (100 * (screen.get_width() / 540),
-                                                            100 * (screen.get_height() / 960)))
-            self.rotation_speed = random.randint(-1, 1)
-            self.hp = 100
-        elif tip == 'm':
-            self.surface = pygame.transform.scale(surface, (70 * (screen.get_width() / 540),
-                                                            70 * (screen.get_height() / 960)))
-            self.rotation_speed = random.randint(-3, 3)
-            self.hp = 50
-        elif tip == 's':
-            self.surface = pygame.transform.scale(surface, (60 * (screen.get_width() / 540),
-                                                            60 * (screen.get_height() / 960)))
-            self.rotation_speed = random.randint(-5, 5)
-            self.hp = 25
-        self.sprite.image = surface
-        self.sprite.rect = surface.get_rect()
-        self.sprite.rect.x, self.sprite.rect.y = (i for i in pos)
-        self.mask = pygame.mask.from_surface(self.sprite.image)
 
-    def get_current_position(self, surface):
-        rect = surface.get_rect()
-        return self.sprite.rect.x, self.sprite.rect.y
+        self.angle = 0
+        self.size = 0
+
+        if self.tip == 'l':
+            self.sprite.image = pygame.transform.scale(self.surface, (100 * (screen.get_width() / 540),
+                                                                      100 * (screen.get_height() / 960)))
+            self.rotation_speed = random.randint(-10, 10)
+            self.hp = 100
+            self.size = 100
+            self.damage = 50
+        elif self.tip == 'm':
+            self.sprite.image = pygame.transform.scale(self.surface, (70 * (screen.get_width() / 540),
+                                                                      70 * (screen.get_height() / 960)))
+            self.rotation_speed = random.randint(-30, 30)
+            self.hp = 50
+            self.size = 70
+            self.damage = 25
+        elif self.tip == 's':
+            self.sprite.image = pygame.transform.scale(self.surface, (60 * (screen.get_width() / 540),
+                                                                      60 * (screen.get_height() / 960)))
+            self.rotation_speed = random.randint(-50, 50)
+            self.hp = 25
+            self.size = 60
+            self.damage = 10
+
+        self.sprite.image = self.surface
+        self.sprite.mask = pygame.mask.from_surface(self.surface)
+        self.sprite.rect = self.surface.get_rect()
+        self.sprite.rect.x += pos[0]
+        self.sprite.rect.y += pos[1]
+
+    def cur_pos(self):
+        return self.x - self.sprite.rect.centerx, self.y - self.sprite.rect.centery
 
     def draw(self):
-        self.angle += self.rotation_speed
-        surface = pygame.transform.rotate(self.surface, self.angle)
-        self.sprite.image = surface
-        self.sprite.rect.x -= self.speed * math.sin(self.direction)
-        self.sprite.rect.y += self.speed * math.cos(self.direction)
-        self.mask = pygame.mask.from_surface(self.sprite.image)
-        self.screen.blit(surface, self.get_current_position(self.sprite.image))
+        self.angle += self.rotation_speed * 0.1
+        self.sprite.image = pygame.transform.rotate(self.surface, self.angle)
+        self.sprite.rect = self.sprite.image.get_rect()
+        self.x -= self.speed * math.sin(self.direction)
+        self.y += self.speed * math.cos(self.direction)
+        self.screen.blit(self.sprite.image, (self.cur_pos()))
+        self.sprite.rect.x, self.sprite.rect.y = self.cur_pos()
+        self.sprite.mask = pygame.mask.from_surface(self.sprite.image)
 
     def take_damage(self, damage):
         self.hp -= damage
@@ -102,39 +114,45 @@ class Asteroid:
         return False
 
     def destroy(self, screen, all_sprites, e_objs):
+        pos = self.x, self.y
+        cur = self.cur_pos()
         if self.tip == 'l':
             e_objs.append(
-                Asteroid(screen, self.get_current_position(self.sprite.image), random.randint(-90, 90), self.speed,
+                Asteroid(screen, (pos[0] - cur[0], pos[1] - cur[1]), random.randint(-90, 90) // 2, self.speed,
                          all_sprites['m_aster'], 'm'))
             e_objs.append(
-                Asteroid(screen, self.get_current_position(self.sprite.image), random.randint(-90, 90), self.speed,
+                Asteroid(screen, (pos[0] - cur[0], pos[1] - cur[1]), random.randint(-90, 90) // 2, self.speed,
                          all_sprites['m_aster'], 'm'))
         if self.tip == 'm':
             e_objs.append(
-                Asteroid(screen, self.get_current_position(self.sprite.image), random.randint(-90, 90), self.speed,
+                Asteroid(screen, (pos[0] - cur[0], pos[1] - cur[1]), random.randint(-90, 90) // 2, self.speed,
                          all_sprites['s_aster'], 's'))
             e_objs.append(
-                Asteroid(screen, self.get_current_position(self.sprite.image), random.randint(-90, 90), self.speed,
+                Asteroid(screen, (pos[0] - cur[0], pos[1] - cur[1]), random.randint(-90, 90) // 2, self.speed,
                          all_sprites['s_aster'], 's'))
 
 
 class Ship:
-    def __init__(self, screen, pos, sprite, team, shoot):
-        self.team = team
+    def __init__(self, screen, pos, surface, team, shoot):
+        self.sprite = pygame.sprite.Sprite()
+        self.screen = screen
         self.x, self.y = pos
+        self.surface = surface
+        self.team = team
+        self.can_shoot = shoot
         self.angle = 0
         self.hp = 0
         self.shield = 0
-        self.sprite = sprite
-        self.screen = screen
-        self.can_shoot = shoot
-        self.rect = sprite.get_rect()
         self.movement_speed = 1
         self.rotation_speed = 1
-        self.mask = pygame.mask.from_surface(self.sprite)
+        self.sprite.image = surface
+        self.sprite.mask = pygame.mask.from_surface(self.surface)
+        self.sprite.rect = self.surface.get_rect()
+        self.sprite.rect.x += pos[0]
+        self.sprite.rect.y += pos[1]
 
-    def get_current_position(self):
-        return self.x - self.rect.center[0], self.y - self.rect.center[1]
+    def cur_pos(self):
+        return self.x - self.sprite.rect.centerx, self.y - self.sprite.rect.centery
 
     def change_pos(self, x, y):
         if self.x < x and x - self.x < self.movement_speed:
@@ -165,9 +183,9 @@ class Ship:
             self.angle -= self.rotation_speed
 
     def draw(self):
-        sprite = pygame.transform.rotate(self.sprite, self.angle)
-        self.rect = sprite.get_rect()
-        self.screen.blit(sprite, self.get_current_position())
+        self.sprite.image = pygame.transform.rotate(self.surface, self.angle)
+        self.sprite.rect = self.sprite.image.get_rect()
+        self.screen.blit(self.sprite.image, self.cur_pos())
 
     def take_damage(self, damage):
         if self.shield > 0:
@@ -179,24 +197,24 @@ class Ship:
 
 
 class MotherShip(Ship):
-    def __init__(self, screen, pos, sprite, team, shoot=False):
-        super().__init__(screen, pos, sprite, team, shoot)
+    def __init__(self, screen, pos, surface, team, shoot=False):
+        super().__init__(screen, pos, surface, team, shoot)
         self.name = 'MotherShip'
         self.hp = 1000
         self.shield = 100
-        self.sprite = pygame.transform.scale(sprite,
-                                             (400 * (screen.get_width() / 540), 400 * (screen.get_height() / 960)))
+        self.surface = pygame.transform.scale(surface,
+                                              (400 * (screen.get_width() / 540), 400 * (screen.get_height() / 960)))
 
     def return_name(self):
         return self.name
 
 
 class AssaultShip(Ship):
-    def __init__(self, screen, pos, sprite, team, shoot=True):
-        super().__init__(screen, pos, sprite, team, shoot)
+    def __init__(self, screen, pos, surface, team, shoot=True):
+        super().__init__(screen, pos, surface, team, shoot)
         self.name = 'Assault'
-        self.sprite = pygame.transform.scale(sprite,
-                                             (48 * (screen.get_width() / 540), 48 * (screen.get_height() / 960)))
+        self.surface = pygame.transform.scale(surface,
+                                              (48 * (screen.get_width() / 540), 48 * (screen.get_height() / 960)))
         self.shoot_delay = 30
         self.delay = 0
 

@@ -237,7 +237,7 @@ class Game:
                 if obj.can_shoot:
                     if obj.try_shoot():
                         self.f_bullets.append(
-                            Bullet(screen, obj.get_current_position(), all_sprites['f_bullet']))
+                            Bullet(screen, obj.cur_pos(), all_sprites['f_bullet']))
                         shots_fired += 1
 
         self.friendly_objects[0].change_pos(screen.get_width() // 2,
